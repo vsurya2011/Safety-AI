@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated CSS Background</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the animation target */
+        #animated-bg {
+            /* Ensures smooth rendering, even though JS updates frequently */
+            transition: background-image 0.1s linear; 
+            /* Initial State (1st Code provided by user) */
+            background-color: #000000;
+            opacity: 0.8;
+            background-image: repeating-radial-gradient( 
+                circle at 0 0, 
+                transparent 0, 
+                #000000 11px 
+            ), 
+            repeating-linear-gradient( #444cf755, #444cf7 );
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden font-sans flex items-center justify-center">
+
+    <!-- The main element where the background animation will take place -->
+    <div id="animated-bg" class="absolute inset-0 z-0"></div>
+
+    <!-- The content overlay section has been removed to leave only the background -->
+
+    <script>
+        // Use an IIFE (Immediately Invoked Function Expression) to contain variables
+        (function() {
+            // --- Configuration ---
+            const START_SPACING = 11;
+            const END_SPACING = 34;
+            const STEP = 1;              // Increase/decrease by 1px at a time
+            const INTERVAL_MS = 50;      // Reverted back to the original, faster speed (was 200ms)
+
+            // --- State Variables ---
+            let currentSpacing = START_SPACING;
+            let direction = STEP; // Positive for increasing, negative for decreasing
+
+            // --- DOM Elements ---
+            const backgroundElement = document.getElementById('animated-bg');
+
+            /**
+             * Updates the background image spacing and checks for boundary reversal.
+             */
+            function animateBackground() {
+                // 1. Update spacing value
+                currentSpacing += direction;
+
+                // 2. Boundary Checks and Direction Reversal
+                if (currentSpacing >= END_SPACING) {
+                    currentSpacing = END_SPACING; // Ensure it doesn't overshoot
+                    direction = -STEP;            // Start decreasing
+                } else if (currentSpacing <= START_SPACING) {
+                    currentSpacing = START_SPACING; // Ensure it doesn't undershoot
+                    direction = STEP;               // Start increasing
+                }
+
+                // 3. Apply the new CSS background-image style
+                const newBackground = `
+                    repeating-radial-gradient(
+                        circle at 0 0,
+                        transparent 0,
+                        #000000 ${currentSpacing}px
+                    ),
+                    repeating-linear-gradient( #444cf755, #444cf7 )
+                `;
+
+                backgroundElement.style.backgroundImage = newBackground;
+            }
+
+            // Start the continuous animation loop
+            window.onload = function() {
+                setInterval(animateBackground, INTERVAL_MS);
+            };
+
+        })();
+    </script>
+</body>
+</html>

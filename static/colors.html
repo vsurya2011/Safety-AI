@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Screen Silk Animated Background</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<script>
+    let scene, camera, renderer, clock, mesh, uniforms;
+
+    const vertexShader = `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+
+        void main() {
+            vPosition = position;
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `;
+
+    const fragmentShader = `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+
+        uniform float uTime;
+        uniform vec3 uColor;
+        uniform float uSpeed;
+        uniform float uScale;
+        uniform float uRotation;
+        uniform float uNoiseIntensity;
+        uniform float uAspect;
+
+        const float e = 2.71828182845904523536;
+
+        float noise(vec2 texCoord) {
+            float G = e;
+            vec2 r = (G * sin(G * texCoord));
+            return fract(r.x * r.y * (1.0 + texCoord.x));
+        }
+
+        vec2 rotateUvs(vec2 uv, float angle) {
+            float c = cos(angle);
+            float s = sin(angle);
+            mat2 rot = mat2(c, -s, s, c);
+            return rot * uv;
+        }
+
+        void main() {
+            float rnd = noise(gl_FragCoord.xy);
+
+            vec2 aspect_uv = vUv;
+            aspect_uv.x *= uAspect;
+
+            vec2 scaled_uv = aspect_uv * uScale;
+            vec2 tex = rotateUvs(scaled_uv, uRotation);
+
+            float tOffset = uSpeed * uTime;
+
+            tex.y += 0.03 * sin(8.0 * tex.x - tOffset);
+
+            float pattern = 0.6 +
+                            0.4 * sin(5.0 * (tex.x + tex.y +
+                                            cos(3.0 * tex.x + 5.0 * tex.y) +
+                                            0.02 * tOffset) +
+                                    sin(20.0 * (tex.x + tex.y - 0.1 * tOffset)));
+
+            vec4 col = vec4(uColor, 1.0) * vec4(pattern) - rnd / 15.0 * uNoiseIntensity;
+            col.a = 1.0;
+            gl_FragColor = col;
+        }
+    `;
+
+    function hexToThreeColor(hex) {
+        const hexClean = hex.replace('#', '');
+        return new THREE.Color(
+            parseInt(hexClean.slice(0, 2), 16) / 255,
+            parseInt(hexClean.slice(2, 4), 16) / 255,
+            parseInt(hexClean.slice(4, 6), 16) / 255
+        );
+    }
+
+    function initThreeJS() {
+        const container = document.getElementById('canvas-container');
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const aspectRatio = width / height;
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(width, height);
+        container.appendChild(renderer.domElement);
+
+        scene = new THREE.Scene();
+
+        camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+        camera.position.set(0, 0, 1);
+
+        uniforms = {
+            uTime: { value: 0.0 },
+            uSpeed: { value: 5.0 },
+            uScale: { value: 1.0 },
+            uNoiseIntensity: { value: 1.5 },
+            uColor: { value: hexToThreeColor('#7F45C4') },
+            uRotation: { value: 0.0 },
+            uAspect: { value: aspectRatio }
+        };
+
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const material = new THREE.ShaderMaterial({
+            uniforms,
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            depthTest: false
+        });
+
+        mesh = new THREE.Mesh(geometry, material);
+
+        // ★★ Fix to ensure full-screen coverage ★★
+        mesh.scale.set(
+            aspectRatio >= 1 ? aspectRatio : 1,
+            aspectRatio < 1 ? 1 / aspectRatio : 1,
+            1
+        );
+
+        scene.add(mesh);
+
+        clock = new THREE.Clock();
+
+        window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function onWindowResize() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const aspectRatio = width / height;
+
+        camera.updateProjectionMatrix();
+        uniforms.uAspect.value = aspectRatio;
+
+        renderer.setSize(width, height);
+
+        // ★★ Rescale plane on resize ★★
+        mesh.scale.set(
+            aspectRatio >= 1 ? aspectRatio : 1,
+            aspectRatio < 1 ? 1 / aspectRatio : 1,
+            1
+        );
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        uniforms.uTime.value += clock.getDelta() * 0.1;
+
+        renderer.render(scene, camera);
+    }
+
+    window.onload = function () {
+        initThreeJS();
+        animate();
+    };
+</script>
+
+</body>
+</html>
